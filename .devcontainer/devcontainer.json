@@ -1,0 +1,14 @@
+{
+  "name": "ROS2 Jazzy - Robot AI PoC",
+  "image": "ros:jazzy-ros-base",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-iot.vscode-ros"
+      ]
+    }
+  },
+  "postCreateCommand": "echo 'source /opt/ros/jazzy/setup.bash' >> ~/.bashrc && apt-get update && apt-get install -y python3-pip ros-jazzy-demo-nodes-cpp ros-jazzy-demo-nodes-py",
+  "remoteUser": "root"
+}
