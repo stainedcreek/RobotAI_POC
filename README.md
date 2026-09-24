@@ -223,11 +223,74 @@ ros2 param set /lidar_node distance 2.3
 
 四種狀態都能獨立測試成功,Day 4 完成。
 
+## Day 5:故障處理(Fault Handling)
+
+`decision_node` 現在會自己監控三個輸入來源(`detected_object`、`confidence`、`distance`)
+多久沒收到新資料。任一個超過 3 秒沒更新,就判定該來源故障,
+**強制**進入 `SAFE_STOP`,優先權蓋過所有正常判斷邏輯(包括 MOVE_FORWARD、STOP、HOLD、SEARCH)。
+
+系統現在有五種狀態:
+```
+NORMAL (person + 近距離)     -> STOP
+NORMAL (person + 遠距離)     -> MOVE_FORWARD
+沒偵測到人                   -> SEARCH
+AI 信心不足 (<0.8)           -> HOLD
+任一感測來源逾時 (>3秒)      -> SAFE_STOP   (故障,最高優先權)
+```
+
+### 重新 build
+這次只改了 `decision_node.py`,理論上不用重新 `colcon build` 也能跑
+(Python 是直譯的),但保險起見還是建議跑一次:
+```bash
+cd /workspaces/RobotAI_POC
+colcon build
+source install/setup.bash
+```
+
+### 執行(5 個 terminal,先跑正常流程確認沒壞掉)
+```bash
+ros2 run sensor_node sensor_node
+ros2 run lidar_node lidar_node
+ros2 run ai_node ai_node
+ros2 run decision_node decision_node
+ros2 run robot_node robot_node
+```
+確認 `[ROBOT] MOVE_FORWARD` 正常出現。
+
+### 驗收:模擬感測器故障
+把 `lidar_node` 那個 terminal 按 `Ctrl+C` **直接關掉**(模擬 LiDAR 斷線/當機)。
+
+等 3 秒左右,觀察 `decision_node` 的 terminal,應該出現(紅字 error log):
+```
+[SAFETY] Timeout on: ['distance']. Entering SAFE_STOP.
+```
+`robot_node` 應該持續顯示:
+```
+[ROBOT] SAFE_STOP
+```
+
+重新啟動 lidar_node:
+```bash
+ros2 run lidar_node lidar_node
+```
+幾秒內 `decision_node` 應該印出:
+```
+[SAFETY] All sources recovered. Resuming normal operation.
+```
+系統恢復回 `MOVE_FORWARD`。
+
+同樣的方式可以測試關掉 `ai_node` 或 `sensor_node`,結果應該都會進入 `SAFE_STOP`。
+
+五種狀態(MOVE_FORWARD / STOP / SEARCH / HOLD / SAFE_STOP)都測過,Day 5 完成。
+這也是面試很好講的一段:「我刻意設計成任一輸入來源異常時系統會 fail-safe,
+而不是用最後一次收到的舊資料繼續動作。」
+
 ## 進度
 - [x] Day 1: 環境建置 (Codespaces + ROS2 Jazzy)
 - [x] Day 2: Sensor → Decision → Robot 基本串接
 - [x] Day 3: AI Perception node
 - [x] Day 4: 第二個感測器 + Sensor Fusion
+- [x] Day 5: 故障處理 (Fault Handling)
 - [ ] Day 3: AI Perception node
 - [ ] Day 4: Sensor Fusion (第二個感測器)
 - [ ] Day 5: Fault Handling
