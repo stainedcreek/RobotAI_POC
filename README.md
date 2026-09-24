@@ -173,10 +173,61 @@ ros2 param set /sensor_node distance 0.8
 
 四種狀態(MOVE_FORWARD / STOP / SEARCH / HOLD)都能切換成功,Day 3 完成。
 
+## Day 4:第二個感測器 + Sensor Fusion
+
+新增 `lidar_node`,獨立發布 `/distance`(原本這是 `sensor_node` 的責任,現在拆出來)。
+
+**重點:`decision_node` 的程式碼完全沒有改動。** 它只訂閱 `/distance` 這個 topic 名稱,
+不管背後是誰發布的。這就是 ROS2 topic 解耦的實際好處——加一個新感測器,
+不用碰下游任何邏輯,這正是「Sensor Fusion」發生在 `decision_node` 端的具體展現:
+它同時融合 `ai_node` 的 `object`/`confidence` 和 `lidar_node` 的 `distance` 三個獨立來源。
+
+```
+sensor_node --/person_detected--> ai_node --/detected_object--> decision_node --> robot_node
+                                        \--/confidence---------/
+lidar_node  --/distance---------------------------------------->
+```
+
+### 重新 build
+```bash
+cd /workspaces/RobotAI_POC
+colcon build
+source install/setup.bash
+```
+
+### 執行(5 個 terminal,每個都先 `source install/setup.bash`)
+```bash
+ros2 run sensor_node sensor_node
+ros2 run lidar_node lidar_node
+ros2 run ai_node ai_node
+ros2 run decision_node decision_node
+ros2 run robot_node robot_node
+```
+
+### 驗收(第 6 個 terminal)
+預設應該看到 `[ROBOT] MOVE_FORWARD`。
+
+改變距離來源(注意是 `/lidar_node`,不是 `/sensor_node` 了):
+```bash
+ros2 param set /lidar_node distance 0.7
+```
+應看到 `[ROBOT] STOP`。
+
+改回:
+```bash
+ros2 param set /lidar_node distance 2.3
+```
+
+`person_detected` 和 `confidence` 的測試方式跟 Day 3 一樣不變
+(`/sensor_node person_detected`、`/ai_node confidence`)。
+
+四種狀態都能獨立測試成功,Day 4 完成。
+
 ## 進度
 - [x] Day 1: 環境建置 (Codespaces + ROS2 Jazzy)
 - [x] Day 2: Sensor → Decision → Robot 基本串接
 - [x] Day 3: AI Perception node
+- [x] Day 4: 第二個感測器 + Sensor Fusion
 - [ ] Day 3: AI Perception node
 - [ ] Day 4: Sensor Fusion (第二個感測器)
 - [ ] Day 5: Fault Handling
