@@ -285,12 +285,75 @@ ros2 run lidar_node lidar_node
 這也是面試很好講的一段:「我刻意設計成任一輸入來源異常時系統會 fail-safe,
 而不是用最後一次收到的舊資料繼續動作。」
 
+## Day 6:Gazebo(VNC 看畫面版)
+
+這天環境改動比較大,重新建置需要 **10-15 分鐘**(要裝 Gazebo Harmonic + VNC + noVNC),有耐心等一下。
+
+### 步驟 1:重建 Codespace
+因為 `.devcontainer` 從單一 image 改成自訂 `Dockerfile`,一定要整個刪掉、重新 Create codespace on main,Rebuild Container 不夠。
+
+### 步驟 2:打開 Gazebo 畫面
+Codespace 建置完成後:
+1. 點下面 **PORTS** 分頁(通常在 Terminal 旁邊)
+2. 找到 port `6080`,把它設成 **Public**(右鍵 → Port Visibility → Public),然後點打開的地球圖示網址
+3. 網址後面手動加上 `/vnc.html`,例如:`https://xxxx-6080.app.github.dev/vnc.html`
+4. 會看到 noVNC 的連線畫面,直接點 **Connect**(沒有設密碼)
+5. 看到一片灰色桌面(fluxbox)就代表虛擬螢幕正常
+
+如果 port 6080 沒有自動出現在 PORTS 列表,手動點 **Add Port** 輸入 `6080`。
+
+### 步驟 3:啟動 Gazebo(在 Codespace 的 Terminal,不是 VNC 畫面裡)
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 launch ros_gz_sim_demos diff_drive.launch.py
+```
+等個幾秒,回頭看 VNC 畫面,應該會跳出 Gazebo 視窗,裡面有一台藍色小車(`vehicle_blue`)。
+第一次因為是軟體算圖(沒有 GPU),畫面會頓頓的,正常。
+
+### 步驟 4:確認可以手動控制
+開新 terminal:
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 topic pub /model/vehicle_blue/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.5}}"
+```
+VNC 畫面裡的小車應該開始往前移動。`Ctrl+C` 停掉這個指令,車子會停。
+
+### 步驟 5:接上你自己的 Sensor→AI→Decision→Robot 系統
+```bash
+cd /workspaces/RobotAI_POC
+colcon build
+source install/setup.bash
+```
+開 5 個 terminal(都要先 `source install/setup.bash`):
+```bash
+ros2 run sensor_node sensor_node
+ros2 run lidar_node lidar_node
+ros2 run ai_node ai_node
+ros2 run decision_node decision_node
+ros2 run robot_node robot_node
+```
+這時候 `robot_node` 會把 `MOVE_FORWARD` 換成真的 Twist 速度指令,發到 Gazebo 裡的小車上。
+看 VNC 畫面:預設狀態小車應該持續往前移動。
+
+### 驗收
+把 `ros2 param set /lidar_node distance 0.7` 設進去(太近),VNC 畫面裡的車應該**停下來**。
+改回 `2.3` 應該**繼續往前**。把 `person_detected` 設 `false`,車應該**原地旋轉**(SEARCH)。
+
+如果小車有跟著你的決策系統動起來,Day 6 完成——你現在有一個完整的
+**AI 決策 → 真實物理模擬**閉環,這是面試 Demo 最有說服力的部分。
+
+### 如果卡住了
+這一天涉及的環境設定最複雜(GPU 算圖、VNC、Gazebo 安裝),第一次沒跑起來很正常。
+把錯誤訊息貼給我(尤其是 `colcon build`、Dockerfile 建置、或 VNC 連不上的錯誤),我幫你排查。
+即使 Gazebo 這步卡住,Day 1-5 的系統本身已經是完整可展示的 PoC,不影響面試核心內容。
+
 ## 進度
 - [x] Day 1: 環境建置 (Codespaces + ROS2 Jazzy)
 - [x] Day 2: Sensor → Decision → Robot 基本串接
 - [x] Day 3: AI Perception node
 - [x] Day 4: 第二個感測器 + Sensor Fusion
 - [x] Day 5: 故障處理 (Fault Handling)
+- [x] Day 6: Gazebo 模擬(VNC 視覺化)
 - [ ] Day 3: AI Perception node
 - [ ] Day 4: Sensor Fusion (第二個感測器)
 - [ ] Day 5: Fault Handling

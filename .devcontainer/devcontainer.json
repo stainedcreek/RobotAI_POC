@@ -1,6 +1,15 @@
 {
-  "name": "ROS2 Jazzy - Robot AI PoC",
-  "image": "ros:jazzy-ros-base",
+  "name": "ROS2 Jazzy + Gazebo Harmonic (VNC)",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "forwardPorts": [6080],
+  "portsAttributes": {
+    "6080": {
+      "label": "noVNC (Gazebo 畫面)",
+      "onAutoForward": "notify"
+    }
+  },
   "customizations": {
     "vscode": {
       "extensions": [
@@ -9,6 +18,7 @@
       ]
     }
   },
-  "postCreateCommand": "apt-get update && apt-get install -y python3-pip python3-colcon-common-extensions ros-jazzy-demo-nodes-cpp ros-jazzy-demo-nodes-py && echo 'source /opt/ros/jazzy/setup.bash' >> ~/.bashrc && echo 'if [ -f /workspaces/RobotAI_POC/install/setup.bash ]; then source /workspaces/RobotAI_POC/install/setup.bash; fi' >> ~/.bashrc",
+  "postCreateCommand": "echo 'source /opt/ros/jazzy/setup.bash' >> ~/.bashrc && echo 'if [ -f /workspaces/RobotAI_POC/install/setup.bash ]; then source /workspaces/RobotAI_POC/install/setup.bash; fi' >> ~/.bashrc",
+  "postStartCommand": "bash /usr/local/bin/start-vnc.sh > /tmp/start-vnc.log 2>&1 &",
   "remoteUser": "root"
 }
