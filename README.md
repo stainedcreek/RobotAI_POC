@@ -108,9 +108,75 @@ ros2 param set /sensor_node person_detected false
 
 三種狀態都能切換成功,Day 2 就完成了。
 
+## Day 3:加入 AI Perception node
+
+架構變成:
+```
+sensor_node --/person_detected--> ai_node --/detected_object--> decision_node --/move_command--> robot_node
+                                        \--/confidence---------/
+sensor_node --/distance---------------------------------------->
+```
+
+`ai_node` 不是真的訓練模型,重點是示範「AI inference 用獨立 ROS2 node 接進系統」,
+輸出 `object` + `confidence`,決策端只看這兩個值 + 距離,不直接依賴感測器原始資料。
+
+### 重新 build
+新增了 package,要重新 build:
+```bash
+cd /workspaces/RobotAI_POC
+colcon build
+source install/setup.bash
+```
+
+### 執行(4 個 terminal,每個都要先 `source install/setup.bash`)
+```bash
+# Terminal 1
+ros2 run sensor_node sensor_node
+
+# Terminal 2
+ros2 run ai_node ai_node
+
+# Terminal 3
+ros2 run decision_node decision_node
+
+# Terminal 4
+ros2 run robot_node robot_node
+```
+
+### 驗收(開第 5 個 terminal 下指令測試)
+預設 `person_detected=true`, `distance=2.5`, `confidence=0.92`,robot_node 應顯示:
+```
+[ROBOT] MOVE_FORWARD
+```
+
+**測試 HOLD(AI 信心不足)：**
+```bash
+ros2 param set /ai_node confidence 0.5
+```
+robot_node 應變成:
+```
+[ROBOT] HOLD
+```
+改回 `ros2 param set /ai_node confidence 0.92` 應該恢復 `MOVE_FORWARD`。
+
+**測試 SEARCH(沒偵測到人)：**
+```bash
+ros2 param set /sensor_node person_detected false
+```
+應看到 `[ROBOT] SEARCH`。改回 `true` 恢復正常。
+
+**測試 STOP(太近)：**
+```bash
+ros2 param set /sensor_node distance 0.8
+```
+應看到 `[ROBOT] STOP`。
+
+四種狀態(MOVE_FORWARD / STOP / SEARCH / HOLD)都能切換成功,Day 3 完成。
+
 ## 進度
 - [x] Day 1: 環境建置 (Codespaces + ROS2 Jazzy)
 - [x] Day 2: Sensor → Decision → Robot 基本串接
+- [x] Day 3: AI Perception node
 - [ ] Day 3: AI Perception node
 - [ ] Day 4: Sensor Fusion (第二個感測器)
 - [ ] Day 5: Fault Handling
